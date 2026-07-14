@@ -2,6 +2,10 @@
 // point. It serves the provider over the plugin protocol; Terraform launches it.
 package main
 
+// Generate the registry documentation under docs/ from the provider schema +
+// examples/. Run with `go generate ./...` or `make docs` (needs terraform).
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name stillbeat
+
 import (
 	"context"
 	"flag"

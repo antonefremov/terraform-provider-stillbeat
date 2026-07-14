@@ -1,0 +1,9 @@
+# golangci-lint v2 configuration.
+# The default set (errcheck, govet, ineffassign, staticcheck, unused) is always
+# on; these are the extras we add. Run locally with `golangci-lint run`.
+version: "2"
+
+linters:
+  enable:
+    - misspell # catches typos in comments/strings
+    - revive # broad style/lint rules (golint successor)

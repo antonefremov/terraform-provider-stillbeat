@@ -1,0 +1,42 @@
+# Publishes a signed provider release to the Terraform Registry on a v* tag.
+#
+# One-time setup before your first `git tag v0.1.0 && git push --tags`:
+#   1. Create a GPG key; add the PUBLIC key to your registry account
+#      (registry.terraform.io -> User Settings -> Signing Keys).
+#   2. Add two repo secrets (Settings -> Secrets and variables -> Actions):
+#        GPG_PRIVATE_KEY  - the ASCII-armored private key (`gpg --armor --export-secret-keys <id>`)
+#        PASSPHRASE       - that key's passphrase
+#   3. Connect the repo at registry.terraform.io (Publish -> Provider).
+# Thereafter each pushed v* tag builds, signs, and publishes automatically.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # needed to create the GitHub Release
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          args: release --clean
+        env:
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
