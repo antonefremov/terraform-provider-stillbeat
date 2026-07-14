@@ -1,0 +1,37 @@
+# Acceptance tests hit a REAL Stillbeat API and create/destroy real checks, so
+# this is manual-only (workflow_dispatch) rather than on every PR.
+#
+# Requires repo secrets:
+#   STILLBEAT_API_KEY   - a key for the target account
+#   STILLBEAT_ENDPOINT  - target API base URL (set this to STAGING; if omitted
+#                         the provider falls back to production)
+#
+# Once a staging environment exists, add a `schedule:` or `push` trigger to run
+# this automatically against staging.
+name: Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: TF_ACC
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+      - name: Run acceptance tests
+        env:
+          TF_ACC: "1"
+          STILLBEAT_API_KEY: ${{ secrets.STILLBEAT_API_KEY }}
+          STILLBEAT_ENDPOINT: ${{ secrets.STILLBEAT_ENDPOINT }}
+        run: go test ./internal/provider/ -v -timeout 30m

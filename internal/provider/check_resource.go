@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	_ resource.Resource                = &checkResource{}
-	_ resource.ResourceWithConfigure   = &checkResource{}
-	_ resource.ResourceWithImportState = &checkResource{}
+	_ resource.Resource                   = &checkResource{}
+	_ resource.ResourceWithConfigure      = &checkResource{}
+	_ resource.ResourceWithImportState    = &checkResource{}
+	_ resource.ResourceWithValidateConfig = &checkResource{}
 )
 
 // NewCheckResource is the resource factory registered with the provider.
@@ -159,6 +160,37 @@ func (r *checkResource) Configure(_ context.Context, req resource.ConfigureReque
 		return
 	}
 	r.client = c
+}
+
+// ValidateConfig enforces the kind/field pairing at plan time — a friendlier
+// error than the API's 400 on a later apply. The API remains the source of
+// truth (cron syntax, tz, durations); this just catches the common mismatch.
+func (r *checkResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var data checkModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	// Skip when kind is unknown (e.g. driven by an unresolved variable).
+	if data.Schedule.Kind.IsUnknown() || data.Schedule.Kind.IsNull() {
+		return
+	}
+	switch data.Schedule.Kind.ValueString() {
+	case "interval":
+		if data.Schedule.Interval.IsNull() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("schedule").AtName("interval"),
+				"Missing interval",
+				`schedule.interval is required when schedule.kind is "interval".`)
+		}
+	case "cron":
+		if data.Schedule.CronExpr.IsNull() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("schedule").AtName("cron_expr"),
+				"Missing cron_expr",
+				`schedule.cron_expr is required when schedule.kind is "cron".`)
+		}
+	}
 }
 
 func (r *checkResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

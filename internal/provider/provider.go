@@ -100,5 +100,7 @@ func (p *stillbeatProvider) Resources(context.Context) []func() resource.Resourc
 }
 
 func (p *stillbeatProvider) DataSources(context.Context) []func() datasource.DataSource {
-	return nil
+	return []func() datasource.DataSource{
+		NewCheckDataSource,
+	}
 }
