@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/antonefremov/terraform-provider-alwaysbeat/internal/client"
@@ -73,17 +74,20 @@ func (d *checkDataSource) Configure(_ context.Context, req datasource.ConfigureR
 }
 
 func (d *checkDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data checkModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	// Read ONLY the id from config: every other attribute is Computed and thus
+	// null at config time, which can't be decoded into the non-nullable nested
+	// structs (e.g. scheduleModel). We rebuild the rest from the API below.
+	var id types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("id"), &id)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	c, err := d.client.GetCheck(ctx, data.ID.ValueString())
+	c, err := d.client.GetCheck(ctx, id.ValueString())
 	if err != nil {
 		if isNotFound(err) {
 			resp.Diagnostics.AddError("Check not found",
-				fmt.Sprintf("no check with id %q", data.ID.ValueString()))
+				fmt.Sprintf("no check with id %q", id.ValueString()))
 			return
 		}
 		resp.Diagnostics.AddError("Read check failed", err.Error())
